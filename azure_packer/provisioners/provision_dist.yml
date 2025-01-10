@@ -1,0 +1,99 @@
+- name: Configuración completa de Node.js, Express, Angular, Nginx y PM2
+  hosts: all
+  become: yes
+  tasks:
+    # Actualizar la lista de paquetes
+    - name: Actualizar paquetes
+      apt:
+        update_cache: yes
+
+    # Instalar Nginx
+    - name: Instalar Nginx
+      apt:
+        name: nginx
+        state: present
+
+    # Configurar el firewall para Nginx
+    - name: Permitir tráfico HTTP y HTTPS en UFW
+      ufw:
+        rule: allow
+        name: "Nginx Full"
+
+    # Habilitar el servicio de Nginx
+    - name: Habilitar servicio de Nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    # Configurar repositorio y actualizar Node.js
+    # antes era el 14 y era fucnional
+    - name: Configurar repositorio de Node.js
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+        apt-get install -y nodejs build-essential
+      args:
+        warn: false
+        executable: /bin/bash
+
+    # Instalar PM2 globalmente
+    - name: Instalar PM2
+      npm:
+        name: pm2
+        global: yes
+
+    # Mover la build de Angular a Nginx
+    - name: Mover build de Angular a Nginx
+      copy:
+        src: /tmp/dist/
+        dest: /var/www/html/
+        remote_src: yes
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    # Copiar aplicación Node.js (Express)
+    - name: Copiar aplicación Node.js
+      copy:
+        src: /tmp/app.js
+        dest: /home/ubuntu/app.js
+        owner: ubuntu
+        group: ubuntu
+        mode: '0777'
+
+    # Configurar Express con PM2
+    - name: Configurar aplicación con PM2
+      shell: |
+        pm2 start /home/ubuntu/app.js
+        env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
+        pm2 save
+      args:
+        executable: /bin/bash
+
+    # Copiar archivo de configuración de Nginx
+    - name: Copiar configuración de Nginx
+      copy:
+        src: /tmp/nginx_default.conf
+        dest: /etc/nginx/sites-available/default
+        owner: root
+        group: root
+        mode: '0644'
+
+    # Probar y reiniciar Nginx
+    - name: Probar configuración de Nginx
+      command: nginx -t
+
+    - name: Reiniciar Nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+    # Validar el servidor
+    - name: Validar que el servidor está funcionando
+      shell: |
+        curl -I localhost
+      register: curl_output
+
+    - name: Mostrar resultado de la validación
+      debug:
+        var: curl_output.stdout

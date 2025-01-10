@@ -1,0 +1,132 @@
+- name: Configuración completa de Node.js, Angular, Express, Nginx y PM2
+  hosts: all
+  become: yes
+  tasks:
+    # Actualizar la lista de paquetes
+    - name: Actualizar lista de paquetes
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    # Instalar dependencias iniciales
+    - name: Instalar herramientas necesarias
+      apt:
+        name: 
+          - curl
+          - software-properties-common
+        state: present
+
+    # Instalar Nginx
+    - name: Instalar Nginx
+      apt:
+        name: nginx
+        state: present
+
+    # Configurar el firewall para Nginx
+    - name: Permitir tráfico HTTP y HTTPS en UFW
+      ufw:
+        rule: allow
+        name: "Nginx Full"
+
+    # Habilitar el servicio de Nginx
+    - name: Habilitar servicio de Nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    # Configurar repositorio y actualizar Node.js (18.x)
+    - name: Configurar repositorio de Node.js (18.x)
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+        apt-get install -y nodejs build-essential
+      args:
+        warn: false
+        executable: /bin/bash
+
+    # Verificar instalación de Node.js y npm
+    - name: Verificar versión de Node.js
+      shell: node -v
+      register: node_version
+    - debug:
+        msg: "Node.js instalado con versión: {{ node_version.stdout }}"
+
+    - name: Verificar versión de npm
+      shell: npm -v
+      register: npm_version
+    - debug:
+        msg: "NPM instalado con versión: {{ npm_version.stdout }}"
+
+    # Instalar Angular CLI globalmente
+    - name: Instalar la última versión de Angular CLI
+      shell: |
+        npm install -g @angular/cli@latest
+      args:
+        warn: false
+        executable: /bin/bash
+
+
+    # Verificar instalación de Angular CLI
+    - name: Verificar versión de Angular CLI
+      shell: ng version
+      register: angular_cli_version
+    - debug:
+        msg: "Angular CLI instalado con éxito: {{ angular_cli_version.stdout_lines | join(' ') }}"
+
+    # Instalar PM2 globalmente
+    - name: Instalar PM2
+      npm:
+        name: pm2
+        global: yes
+
+    # Copiar aplicación Node.js (Express)
+    - name: Copiar aplicación Node.js
+      copy:
+        src: /tmp/app.js
+        dest: /home/ubuntu/app.js
+        owner: ubuntu
+        group: ubuntu
+        mode: '0777'
+
+    # Configurar Express con PM2
+    - name: Configurar aplicación con PM2
+      shell: |
+        pm2 start /home/ubuntu/app.js
+        env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
+        pm2 save
+      args:
+        executable: /bin/bash
+
+    # Copiar archivo de configuración de Nginx
+    - name: Copiar configuración de Nginx
+      copy:
+        src: /tmp/nginx_default.conf
+        dest: /etc/nginx/sites-available/default
+        owner: root
+        group: root
+        mode: '0644'
+
+    # Probar y reiniciar Nginx
+    - name: Probar configuración de Nginx
+      command: nginx -t
+
+    - name: Reiniciar Nginx
+      systemd:
+        name: nginx
+        state: restarted
+
+    # Validar el servidor
+    - name: Validar que el servidor está funcionando
+      shell: |
+        curl -I localhost
+      register: curl_output
+
+    - name: Mostrar resultado de la validación
+      debug:
+        var: curl_output.stdout
+
+# ng new angular-hello-world --defaults
+# nano src/app/app.component.ts
+# nano src/app/app.module.ts
+# npm install --save-dev @angular-devkit/build-angular
+# ng build
