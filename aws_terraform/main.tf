@@ -189,8 +189,12 @@ resource "aws_instance" "web_server" {
       # Instalar dependencias si no están instaladas
       "sudo npm install",
 
-      # Construir los archivos estáticos de Angular
-      "sudo npm run build --prod",
+      # Construir los archivos estáticos de Angular (sigue sin funcionar)
+      #"sudo npm run build --no-interactive",
+ 
+      "export CI=true",
+      "sudo npm install",
+      "sudo ng build --configuration production",
 
       # Crear el directorio en Nginx si no existe
       "sudo mkdir -p /var/www/angular-app/dist",
@@ -219,7 +223,7 @@ resource "aws_instance" "web_server" {
 
 
 
-# # ssh -i id_rsa ubuntu@18.234.103.43
+# # ssh -i id_rsa ubuntu@54.90.78.88
 
     # # Deshabilitar preguntas interactivas de Angular CLI
     # "npx ng config -g cli.analytics false",
