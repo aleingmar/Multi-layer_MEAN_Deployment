@@ -187,11 +187,10 @@ resource "aws_instance" "web_server" {
       "cd /home/ubuntu/angular-app",
 
       # Instalar dependencias si no están instaladas
-      #"sudo npm install",
+      "sudo npm install",
 
       # Construir los archivos estáticos de Angular
-      #"sudo npm run build --prod",
-      "sudo npm run build",
+      "sudo npm run build --prod",
 
       # Crear el directorio en Nginx si no existe
       "sudo mkdir -p /var/www/angular-app/dist",
@@ -208,7 +207,6 @@ resource "aws_instance" "web_server" {
 
       # Iniciar el backend con PM2
       "sudo pm2 start /home/ubuntu/app.js",
-      "sudo pm2 save"
     ]
   }
 }
@@ -218,3 +216,15 @@ resource "aws_instance" "web_server" {
 
 # terraform apply -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token" 
 # terraform destroy -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token"
+
+
+
+# # ssh -i id_rsa ubuntu@18.234.103.43
+
+    # # Deshabilitar preguntas interactivas de Angular CLI
+    # "npx ng config -g cli.analytics false",
+    # "npx ng config -g cli.defaultCollection ''",
+    # "npx ng config -g cli.warnings.versionMismatch false",
+
+    # ubuntu@ip-172-31-94-170:~/angular-app$ sudo chown -R ubuntu:ubuntu /home/ubuntu/angular-app
+#ubuntu@ip-172-31-94-170:~/angular-app$ npm install

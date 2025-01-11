@@ -6,8 +6,6 @@
     - name: Actualizar lista de paquetes
       apt:
         update_cache: yes
-        upgrade: yes
-
 
     # Instalar Nginx
     - name: Instalar Nginx
@@ -116,15 +114,13 @@
     ####################### EXPRESS START ############################################
     # Instalar Express y Cors
     - name: Instalar Express y Cors
-      npm:
-        name: "{{ item }}"
-        global: no
-        state: present
-      with_items:
+      shell: |
+        npm install {{ item }}
+      args:
+        chdir: /home/ubuntu
+      loop:
         - express
         - cors
-      args:
-        chdir: /home/ubuntu # Asegurarse de que se instalan en la carpeta correcta
 
     # Copiar aplicación Node.js (Express)
     - name: Copiar aplicación Node.js
