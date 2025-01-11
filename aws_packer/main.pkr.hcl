@@ -73,10 +73,6 @@ build {
   name    = "comandos-cloud-node-nginx"
   sources = ["source.amazon-ebs.aws_builder"]
 
-  build {
-  name    = "ansible-frontend-backend-azure"
-  sources = ["source.azure-arm.azure_builder"]
-
   provisioner "shell" {
     inline = [
       "sudo apt update -y",
@@ -84,17 +80,16 @@ build {
     ]
   }
   provisioner "file" { # Pasamos los ficheros a la instancia para que ansible los puedo manipular (ansible esta en la instancia)
-  source      = "../packer/provisioners/app.js"
+  source      = "../aws_packer/provisioners/app.js"
   destination = "/tmp/app.js"
 }
 
   provisioner "file" {
-  source      = "../packer/provisioners/nginx_default.conf"
+  source      = "../aws_packer/provisioners/nginx_default.conf"
   destination = "/tmp/nginx_default.conf"
   }
 
   provisioner "ansible-local" {
-    playbook_file = "../packer/provisioners/provision.yml" #perspectiva desde el terraform apply 
+    playbook_file = "../aws_packer/provisioners/provision.yml" #perspectiva desde el terraform apply 
   }
-}
 }

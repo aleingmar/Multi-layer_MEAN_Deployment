@@ -26,7 +26,8 @@ resource "null_resource" "packer_ami" {
   provisioner "local-exec" {
     # Este comando invoca Packer para construir una AMI personalizada usando las variables y configuraciones proporcionadas.
     # usa solo ese provisioner y builder comandos-cloud-node-nginx.amazon-ebs.aws_builder
-    command = "packer build -var aws_access_key=${var.aws_access_key} -var aws_secret_key=${var.aws_secret_key} -var aws_session_token=${var.aws_session_token} -var-file=..\\aws_packer\\variables.pkrvars.hcl ..\\aws_packer\\main.pkr.hcl"
+    command = "packer build -var aws_access_key=${var.aws_access_key} -var aws_secret_key=${var.aws_secret_key} -var aws_session_token=${var.aws_session_token} -var-file=../aws_packer/variables.pkrvars.hcl ../aws_packer/main.pkr.hcl"
+    #command = "packer build -var azure_subscription_id=${var.azure_subscription_id} -var azure_client_id=${var.azure_client_id} -var azure_client_secret=${var.azure_client_secret} -var azure_tenant_id=${var.azure_tenant_id} -var-file=../azure_packer/variables.pkrvars.hcl ../azure_packer/main.pkr.hcl"
   }
 }
 
@@ -124,7 +125,6 @@ resource "aws_security_group" "web_server_sg" {
 ###################################################
 # GENERA EL PAR DE CLAVES Y SE LO PASA A AWS
 ##################################################
-# no almacenamos las claves, no podriamos usarlas para conectarnos por ssh a la instancia 
 # Generar un par de claves SSH automáticamente
 resource "tls_private_key" "ssh_key" {
   algorithm = "RSA"
@@ -137,6 +137,12 @@ resource "aws_key_pair" "generated_key" {
   public_key = tls_private_key.ssh_key.public_key_openssh
 }
 
+# Guardar la clave privada localmente
+resource "local_file" "private_key" {
+  content  = tls_private_key.ssh_key.private_key_pem
+  filename = "${path.module}/id_rsa"
+}
+
 ####################################################################################################
 # CONFIGURACIÓN DE LA INSTANCIA EC2
 ####################################################################################################
@@ -146,30 +152,20 @@ resource "aws_key_pair" "generated_key" {
 resource "aws_instance" "web_server" {
   ## IMPORTANTE--> Condicion para desplegar en AWS, si al hacer el terraform apply el valor del target es aws o both, se desplegara en aws
   
-
   ami                   = data.aws_ami.latest_ami.id # Usa la AMI más reciente creada con Packer.
   instance_type         = var.instance_type          # Define el tipo de instancia basado en la variable `instance_type`.
-  key_name              = aws_key_pair.generated_key.key_name              # Especifica la clave SSH para acceso remoto.
-  #vpc_security_group_ids = [aws_security_group.web_server_sg.id] # Asocia el grupo de seguridad configurado.
-  # Referencia correcta al grupo de seguridad configurado.
-  vpc_security_group_ids = [aws_security_group.web_server_sg.id]
+  key_name              = aws_key_pair.generated_key.key_name # Especifica la clave SSH para acceso remoto.
+  vpc_security_group_ids = [aws_security_group.web_server_sg.id] # Asocia el grupo de seguridad configurado.
 
   tags = {
     Name = var.instance_name # Etiqueta la instancia con el nombre especificado en la variable.
   }
 
   # Configuración para conectar a la instancia vía SSH.
-  # connection {
-  #   type        = "ssh"
-  #   user        = "ubuntu"                    # Usuario predeterminado en las AMIs de Ubuntu.
-  #   private_key = file("C:\\Users\\User\\.aws\\unir.pem") # Ruta a la clave privada para la conexión SSH. (cuando cree el par de claves lo almacene en esta direccion)
-  #   host        = self.public_ip              # Usa la IP pública de la instancia como host.
-  # }
-  # Configuración para conectar a la instancia vía SSH.
   connection {
     type        = "ssh"
     user        = "ubuntu"
-    private_key = tls_private_key.ssh_key.private_key_pem
+    private_key = file("${path.module}/id_rsa") # Usar la clave privada guardada localmente
     host        = self.public_ip
   }
 
@@ -180,3 +176,8 @@ resource "aws_instance" "web_server" {
     ]
   }
 }
+
+################################################################################################################
+
+# terraform apply -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token" 
+# terraform destroy -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token"

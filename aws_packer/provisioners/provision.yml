@@ -128,5 +128,8 @@
 # ng new angular-hello-world --defaults
 # nano src/app/app.component.ts
 # nano src/app/app.module.ts
-# npm install --save-dev @angular-devkit/build-angular
 # ng build
+
+
+
+# sudo systemctl status nginx

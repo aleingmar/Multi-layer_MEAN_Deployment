@@ -5,9 +5,9 @@
 # aws_secret_key = "TU_SECRET_KEY"
 # aws_session_token = "TU_SESSION_TOKEN"
 aws_region     = "us-east-1"
-ami_name       = "IMAGEN_Node_Nginx"
+ami_name       = "imagen_stack_MEAN"
 instance_type  = "t2.micro"
 key_name       = "unir" # Nombre del par de claves para acceder a la instancia
 
 ######### COMPARTIDOS ENTRE LOS DOS
-instance_name  = "Instance_Node_Nginx"
+instance_name  = "Instance_stack_MEAN"

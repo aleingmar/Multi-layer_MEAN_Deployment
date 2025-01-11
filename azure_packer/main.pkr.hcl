@@ -96,22 +96,22 @@ build {
     ]
   }
   provisioner "file" { # Pasamos los ficheros a la instancia para que ansible los puedo manipular (ansible esta en la instancia)
-  source      = "../packer/provisioners/app.js"
+  source      = "../azure_packer/provisioners/app.js"
   destination = "/tmp/app.js"
 }
 
   provisioner "file" {
-  source      = "../packer/provisioners/nginx_default.conf"
+  source      = "../azure_packer/provisioners/nginx_default.conf"
   destination = "/tmp/nginx_default.conf"
   }
 #    # Copiar la carpeta completa del proyecto Angular a la instancia
 #    provisioner "file" {
-#     source      = "../packer/provisioners/dist" # Ruta local donde está la carpeta dist
+#     source      = "../azure_packer/provisioners/dist" # Ruta local donde está la carpeta dist
 #     destination = "/tmp/dist"                  # Ruta en la máquina virtual
 # }
 
 
   provisioner "ansible-local" {
-    playbook_file = "../packer/provisioners/provision.yml" #perspectiva desde el terraform apply 
+    playbook_file = "../azure_packer/provisioners/provision.yml" #perspectiva desde el terraform apply 
   }
 }
