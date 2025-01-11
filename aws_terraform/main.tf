@@ -113,7 +113,14 @@ resource "aws_security_group" "web_server_sg" {
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]    # Permite acceso desde cualquier dirección IP (debe ser restringido en entornos reales).
   }
-
+ # Permitir tráfico al puerto 3000 (Express)
+  ingress {
+    description      = "Permitir trafico al backend Express en el puerto 3000"
+    from_port        = 3000
+    to_port          = 3000
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
   # Reglas de egreso para permitir todo el tráfico saliente.
   egress {
     from_port   = 0                     # Puerto de salida (todos).
@@ -137,45 +144,75 @@ resource "aws_key_pair" "generated_key" {
   public_key = tls_private_key.ssh_key.public_key_openssh
 }
 
-# Guardar la clave privada localmente
+# Guardar la clave privada localmente en el directorio donde se ejecuta el apply
 resource "local_file" "private_key" {
   content  = tls_private_key.ssh_key.private_key_pem
-  filename = "${path.module}/id_rsa"
+  filename = "${path.module}/id_rsa" 
 }
 
 ####################################################################################################
 # CONFIGURACIÓN DE LA INSTANCIA EC2
 ####################################################################################################
+
+
 # Este recurso lanza una instancia EC2 usando la AMI recuperada en el bloque anterior.
 # Asocia el grupo de seguridad a la instancia EC2 y configura la conexión SSH.
-
 resource "aws_instance" "web_server" {
-  ## IMPORTANTE--> Condicion para desplegar en AWS, si al hacer el terraform apply el valor del target es aws o both, se desplegara en aws
-  
-  ami                   = data.aws_ami.latest_ami.id # Usa la AMI más reciente creada con Packer.
-  instance_type         = var.instance_type          # Define el tipo de instancia basado en la variable `instance_type`.
-  key_name              = aws_key_pair.generated_key.key_name # Especifica la clave SSH para acceso remoto.
-  vpc_security_group_ids = [aws_security_group.web_server_sg.id] # Asocia el grupo de seguridad configurado.
+  ami                   = data.aws_ami.latest_ami.id
+  instance_type         = var.instance_type
+  key_name              = aws_key_pair.generated_key.key_name
+  vpc_security_group_ids = [aws_security_group.web_server_sg.id]
 
   tags = {
-    Name = var.instance_name # Etiqueta la instancia con el nombre especificado en la variable.
+    Name = var.instance_name
   }
 
-  # Configuración para conectar a la instancia vía SSH.
   connection {
     type        = "ssh"
     user        = "ubuntu"
-    private_key = file("${path.module}/id_rsa") # Usar la clave privada guardada localmente
+    private_key = tls_private_key.ssh_key.private_key_pem
     host        = self.public_ip
   }
 
-  # Provisionador remoto para ejecutar comandos en la instancia EC2.
+    # Ejecutar script Bash para sustituir el marcador y construir Angular
   provisioner "remote-exec" {
     inline = [
-      "echo 'La instancia está configurada correctamente.'" # Muestra un mensaje simple para verificar que la instancia está configurada.
+      # Generar la URL dinámica con la IP pública
+      "BACKEND_URL=http://${self.public_ip}:3000",
+
+      # Sustituir el marcador en app.component.ts
+      "sudo sed -i 's|__BACKEND_URL__|'\"$BACKEND_URL\"'|g' /home/ubuntu/angular-app/src/app/app.component.ts",
+
+      # Cambiar al directorio del proyecto Angular
+      "cd /home/ubuntu/angular-app",
+
+      # Instalar dependencias si no están instaladas
+      #"sudo npm install",
+
+      # Construir los archivos estáticos de Angular
+      #"sudo npm run build --prod",
+      "sudo npm run build",
+
+      # Crear el directorio en Nginx si no existe
+      "sudo mkdir -p /var/www/angular-app/dist",
+
+      # Copiar los archivos generados al directorio que usa Nginx
+      "sudo cp -r dist/angular-app/* /var/www/angular-app/dist/",
+
+      # Asegurarse de que los permisos sean correctos
+      "sudo chown -R www-data:www-data /var/www/angular-app/dist",
+      "sudo chmod -R 755 /var/www/angular-app/dist",
+
+      # Reiniciar Nginx para servir los nuevos archivos
+      "sudo systemctl restart nginx",
+
+      # Iniciar el backend con PM2
+      "sudo pm2 start /home/ubuntu/app.js",
+      "sudo pm2 save"
     ]
   }
 }
+
 
 ################################################################################################################
 

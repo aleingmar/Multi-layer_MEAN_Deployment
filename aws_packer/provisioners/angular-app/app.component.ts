@@ -12,10 +12,13 @@ import { HttpClient } from '@angular/common/http';
 export class AppComponent implements OnInit {
   message = 'Cargando mensaje...';
 
+  // URL dinámica, que será sustituida con Ansible
+  backendUrl = '__BACKEND_URL__';
+
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.http.get<{ mensaje: string }>('http://localhost:3000/api/saludo')
+    this.http.get<{ mensaje: string }>(`${this.backendUrl}/api/saludo`)
       .subscribe({
         next: (data) => this.message = data.mensaje,
         error: (err) => this.message = 'Error conectando al backend'
