@@ -49,6 +49,8 @@
         msg: "NPM instalado con versión: {{ npm_version.stdout }}"
 
 #######################    ANGULAR START      ################################################3
+
+
     # Instalar Angular CLI globalmente
     - name: Instalar la última versión de Angular CLI
       shell: |
@@ -112,7 +114,7 @@
         name: pm2
         global: yes
     ####################### EXPRESS START ############################################
-    # Instalar Express y Cors
+    # Instalar Express, cors, mongoose
     - name: Instalar Express y Cors
       shell: |
         npm install {{ item }}
@@ -121,6 +123,7 @@
       loop:
         - express
         - cors
+        - mongoose
 
     # Copiar aplicación Node.js (Express)
     - name: Copiar aplicación Node.js

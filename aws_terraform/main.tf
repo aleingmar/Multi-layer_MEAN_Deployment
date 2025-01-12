@@ -49,32 +49,26 @@ data "aws_ami" "latest_ami" {
 # OBTENER LA VPC POR DEFECTO (configuración de red virtual)
 ####################################################################################################
 data "aws_vpc" "default" {
-  
   default = true # Recupera la VPC predeterminada asociada a la cuenta AWS.
 }
+# me fijo en las subreedes que tiene la vpc por defecto
+data "aws_subnet" "default" {
+  filter {
+    name   = "vpc-id"
+    values = ["vpc-06cb256503c358a72"]
+  }
+
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1a"]
+  }
+}
+
 
 ####################################################################################################
 # CONFIGURACIÓN DEL GRUPO DE SEGURIDAD PARA LA INSTANCIA EC2
 ####################################################################################################
-# Intentar buscar un grupo de seguridad existente basado en su nombre y VPC.
-# data "aws_security_group" "existing_sg" {
-#   
-#   # Filtro para buscar un grupo de seguridad por su nombre.
-#   filter {
-#     name   = "group-name"
-#     values = ["${var.instance_name}-sg"] # Nombre basado en la variable `instance_name`.
-#   }
-#   # Filtro para asegurarse de que pertenece a la VPC predeterminada.
-#   # filter {
-#   #   name   = "vpc-id"
-#   #   values = [data.aws_vpc.default.id] # ID de la VPC predeterminada.
-#   # }
-#   filter {
-#     name   = "vpc-id"
-#     values = length(data.aws_vpc.default) > 0 ? [data.aws_vpc.default.id] : []
-#   }
-
-# }
+# Este recurso crea un grupo de seguridad para la instancia EC2.
 resource "aws_security_group" "web_server_sg" {
   # Crear un nuevo grupo de seguridad solo si no existe uno con el nombre especificado.
   # Condición para crear o no el recurso. (si no existe count=1, se crea uno nuevo), try es para que no falle si no hay
@@ -113,13 +107,13 @@ resource "aws_security_group" "web_server_sg" {
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]    # Permite acceso desde cualquier dirección IP (debe ser restringido en entornos reales).
   }
- # Permitir tráfico al puerto 3000 (Express)
+ # Permitir ICMP (Ping)
   ingress {
-    description      = "Permitir trafico al backend Express en el puerto 3000"
-    from_port        = 3000
-    to_port          = 3000
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    description      = "Permitir ICMP (Ping)"
+    from_port        = -1                # Todos los tipos de ICMP
+    to_port          = -1
+    protocol         = "icmp"
+    cidr_blocks      = ["0.0.0.0/0"]     # Permitir desde cualquier IP (ajusta según tu necesidad)
   }
   # Reglas de egreso para permitir todo el tráfico saliente.
   egress {
@@ -129,6 +123,80 @@ resource "aws_security_group" "web_server_sg" {
     cidr_blocks = ["0.0.0.0/0"]         # Permite tráfico hacia cualquier dirección IP.
   }
 }
+
+resource "aws_security_group" "mongodb_sg" {
+  name        = "mongodb-sg"
+  description = "Grupo de seguridad para MongoDB"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "Permitir trafico desde el backend"
+    from_port   = 27017
+    to_port     = 27017
+    protocol    = "tcp"
+    #cidr_blocks = ["172.31.0.0/16"] # Cambiar según el CIDR de tu VPC
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+    # Permitir ICMP (Ping)
+  ingress {
+    description      = "Permitir ICMP (Ping)"
+    from_port        = -1
+    to_port          = -1
+    protocol         = "icmp"
+    cidr_blocks      = ["0.0.0.0/0"]     # Permitir desde cualquier IP
+  }
+
+  # Reglas de ingreso para permitir acceso SSH.
+  ingress {
+    description      = "Permitir acceso SSH"
+    from_port        = 22               # Puerto de entrada (SSH).
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]    # Permite acceso desde cualquier dirección IP (debe ser restringido en entornos reales).
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+####################################################################################################
+# CONFIGURACIÓN DE LAS ELASTIC NETWORK INTERFACES (ENI) CON IP PRIVADAS ESTÁTICAS
+####################################################################################################
+# CAMBIOS: Crear ENIs con direcciones IP estáticas
+# A mis dos instancias les asignaré direcciones IP estáticas dentro de la misma subred privada (no son accesibles desde fuera de puerta enlace)
+# servira para que se comunique entre ellas
+resource "aws_network_interface" "web_server_eni" {
+  subnet_id   = data.aws_subnet.default.id
+  private_ips = ["172.31.16.10"] # IP estática para el servidor web
+  security_groups = [aws_security_group.web_server_sg.id] # Asigna el grupo de seguridad del servidor web
+  tags = {
+    Name = "Web-Server-ENI"
+  }
+}
+# resource "aws_eip" "web_server_eip" {
+#   network_interface = aws_network_interface.web_server_eni.id
+#   tags = {
+#     Name = "Web-Server-EIP"
+#   }
+# }
+
+resource "aws_network_interface" "mongodb_eni" {
+  subnet_id   = data.aws_subnet.default.id
+  private_ips = ["172.31.16.20"] # IP estática para MongoDB
+  security_groups = [aws_security_group.mongodb_sg.id] # Asigna el grupo de seguridad de MongoDB
+  tags = {
+    Name = "MongoDB-ENI"
+  }
+}
+# resource "aws_eip" "mongodb_eip" {
+#   network_interface = aws_network_interface.mongodb_eni.id
+#   tags = {
+#     Name = "MongoDB-EIP"
+#   }
+# }
 ###################################################
 # GENERA EL PAR DE CLAVES Y SE LO PASA A AWS
 ##################################################
@@ -161,7 +229,13 @@ resource "aws_instance" "web_server" {
   ami                   = data.aws_ami.latest_ami.id
   instance_type         = var.instance_type
   key_name              = aws_key_pair.generated_key.key_name
-  vpc_security_group_ids = [aws_security_group.web_server_sg.id]
+  #vpc_security_group_ids = [aws_security_group.web_server_sg.id]
+
+  # Asociar la ENI con la instancia
+  network_interface {
+    network_interface_id = aws_network_interface.web_server_eni.id
+    device_index         = 0
+  }
 
   tags = {
     Name = var.instance_name
@@ -177,8 +251,15 @@ resource "aws_instance" "web_server" {
     # Ejecutar script Bash para sustituir el marcador y construir Angular
   provisioner "remote-exec" {
     inline = [
+
+      # Iniciar el backend con PM2
+      "sudo pm2 start /home/ubuntu/app.js",
+
       # Generar la URL dinámica con la IP pública
-      "BACKEND_URL=http://${self.public_ip}:3000",
+      #"BACKEND_URL=http://${self.public_ip}:3000",
+
+      # Generar la URL dinámica con la IP pública
+      "BACKEND_URL=http://${self.public_ip}",
 
       # Sustituir el marcador en app.component.ts
       "sudo sed -i 's|__BACKEND_URL__|'\"$BACKEND_URL\"'|g' /home/ubuntu/angular-app/src/app/app.component.ts",
@@ -186,34 +267,75 @@ resource "aws_instance" "web_server" {
       # Cambiar al directorio del proyecto Angular
       "cd /home/ubuntu/angular-app",
 
-      # Instalar dependencias si no están instaladas
-      "sudo npm install",
-
-      # Construir los archivos estáticos de Angular (sigue sin funcionar)
-      #"sudo npm run build --no-interactive",
- 
-      "export CI=true",
-      "sudo npm install",
-      "sudo ng build --configuration production",
+      "export NG_CLI_ANALYTICS=false",           # Desactiva analíticas
+      "export CI=true",                          # Configura el entorno como CI/CD
+      "echo n | ng analytics off --global",     # Desactiva preguntas interactivas
+      "ng config -g cli.analytics false",       # Configura analíticas en Angular CLI
+      "ng config -g cli.warnings.versionMismatch false", # Evita advertencias
+      "sudo npm install",                       # Instala dependencias
+      #"sudo ng build --configuration production --no-interactive", # Construye el proyecto sin interacción
 
       # Crear el directorio en Nginx si no existe
       "sudo mkdir -p /var/www/angular-app/dist",
 
       # Copiar los archivos generados al directorio que usa Nginx
-      "sudo cp -r dist/angular-app/* /var/www/angular-app/dist/",
+      #"sudo cp -r dist/angular-app/* /var/www/angular-app/dist/",
 
       # Asegurarse de que los permisos sean correctos
-      "sudo chown -R www-data:www-data /var/www/angular-app/dist",
-      "sudo chmod -R 755 /var/www/angular-app/dist",
+      #"sudo chown -R www-data:www-data /var/www/angular-app/dist",
+      #"sudo chmod -R 755 /var/www/angular-app/dist",
 
       # Reiniciar Nginx para servir los nuevos archivos
       "sudo systemctl restart nginx",
-
-      # Iniciar el backend con PM2
-      "sudo pm2 start /home/ubuntu/app.js",
     ]
   }
 }
+
+# Configuración de la instancia MongoDB
+resource "aws_instance" "mongodb" {
+  ami                   = data.aws_ami.latest_ami.id
+  instance_type         = var.instance_type
+  key_name              = aws_key_pair.generated_key.key_name
+  #vpc_security_group_ids = [aws_security_group.web_server_sg.id]
+
+  tags = {
+    Name = "MongoDB-Instance"
+  }
+
+  # Asociar la ENI con la instancia
+  network_interface {
+    network_interface_id = aws_network_interface.mongodb_eni.id
+    device_index         = 0
+  }
+
+    connection {
+    type        = "ssh"
+    user        = "ubuntu" # Usuario predeterminado de Ubuntu en AWS AMI
+    private_key = tls_private_key.ssh_key.private_key_pem
+    host        = self.public_ip
+  }
+
+
+provisioner "remote-exec" {
+  inline = [
+    # Actualizar repositorios
+    "sudo apt-get update",
+
+    # Instalar MongoDB
+    "sudo apt-get install -y mongodb",
+
+    # Cambiar bind_ip a 0.0.0.0 en /etc/mongodb.conf
+    "sudo sed -i 's/^bind_ip.*/bind_ip = 0.0.0.0/' /etc/mongodb.conf",
+
+    # Reiniciar MongoDB para aplicar los cambios
+    "sudo systemctl restart mongodb",
+
+    # Habilitar MongoDB para que inicie automáticamente al arrancar el sistema
+    "sudo systemctl enable mongodb"
+  ]
+}
+}
+
 
 
 ################################################################################################################
@@ -221,14 +343,6 @@ resource "aws_instance" "web_server" {
 # terraform apply -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token" 
 # terraform destroy -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token"
 
+# Get-ChildItem Env: | Where-Object { $_.Name -like "PKR_VAR_*" } --> ver credenciales actuales de AWS en la consola de powershell
 
-
-# # ssh -i id_rsa ubuntu@54.90.78.88
-
-    # # Deshabilitar preguntas interactivas de Angular CLI
-    # "npx ng config -g cli.analytics false",
-    # "npx ng config -g cli.defaultCollection ''",
-    # "npx ng config -g cli.warnings.versionMismatch false",
-
-    # ubuntu@ip-172-31-94-170:~/angular-app$ sudo chown -R ubuntu:ubuntu /home/ubuntu/angular-app
-#ubuntu@ip-172-31-94-170:~/angular-app$ npm install
+# # ssh -i id_rsa ubuntu@34.228.13.36

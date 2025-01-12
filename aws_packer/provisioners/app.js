@@ -1,19 +1,64 @@
 // CORS (Cross-Origin Resource Sharing): Angular y Express generalmente corren en diferentes dominios o puertos durante el desarrollo. Para permitir la comunicación, incluye el middleware cors en tu backend, como en el ejemplo anterior.
+// const express = require('express');
+// const cors = require('cors');
+
+// const app = express();
+// const PORT = 3000;
+
+// // Middleware para CORS
+// app.use(cors());
+// app.use(express.json());
+
+// // Rutas de ejemplo
+// app.get('/api/saludo', (req, res) => {
+//     res.json({ mensaje: 'Hola desde el backend!' });
+// });
+
+// app.listen(PORT, () => {
+//     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+// });
+
 const express = require('express');
 const cors = require('cors');
+const mongoose = require('mongoose'); // cliente de MongoDB para Node.js (libreria) corre en el puerto 27017
 
 const app = express();
 const PORT = 3000;
 
-// Middleware para CORS
+// URL de MongoDB (reemplazar con la IP de la instancia MongoDB)
+// const MONGO_URL = "mongodb://<MONGO_INSTANCE_PUBLIC_IP>:27017/hola_mundo";
+const MONGO_URL = "mongodb://172.31.16.20:27017"
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Rutas de ejemplo
-app.get('/api/saludo', (req, res) => {
-    res.json({ mensaje: 'Hola desde el backend!' });
+// Variable para verificar el estado de la conexión
+let dbConnected = false;
+
+// Conectar a MongoDB
+mongoose.connect(MONGO_URL, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+}).then(() => {
+    console.log("Conexión exitosa a MongoDB");
+    dbConnected = true; // Actualiza el estado a conectado
+}).catch(err => {
+    console.error("Error al conectar a MongoDB:", err);
+    dbConnected = false; // Asegura que el estado sea falso en caso de error
 });
 
+// Ruta de ejemplo
+app.get('/api/saludo', (req, res) => {
+    if (dbConnected) {
+        res.json({ mensaje: 'Hola desde el backend conectado correctamente a MongoDB!' });
+    } else {
+        res.json({ mensaje: 'Hola desde el backend, pero no se pudo conectar a MongoDB.' });
+    }
+});
+
+// Iniciar el servidor
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
+

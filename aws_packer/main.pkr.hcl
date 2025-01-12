@@ -75,8 +75,10 @@ build {
 
   provisioner "shell" {
     inline = [
-      "sudo apt update -y",
-      "sudo apt install -y ansible"
+      "sudo apt-get update -y",
+      "sudo apt-get install -y software-properties-common" ,
+      "sudo add-apt-repository --yes --update ppa:ansible/ansible",
+      "sudo apt-get install -y ansible"
     ]
   }
   provisioner "file" { # Pasamos los ficheros a la instancia para que ansible los puedo manipular (ansible esta en la instancia)
