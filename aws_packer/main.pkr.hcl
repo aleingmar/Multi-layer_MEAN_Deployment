@@ -100,10 +100,6 @@ build {
   source      = "../aws_packer/provisioners/angular-app/app.modules.ts"
   destination = "/tmp/app.modules.ts"
   }
-  # provisioner "file" {
-  # source      = "../aws_packer/provisioners/angular-app/environment.ts"
-  # destination = "/tmp/app.environment.ts"
-  # }
   #############################################33
 
   provisioner "ansible-local" {

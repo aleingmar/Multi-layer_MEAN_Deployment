@@ -52,15 +52,17 @@ data "aws_vpc" "default" {
   default = true # Recupera la VPC predeterminada asociada a la cuenta AWS.
 }
 # me fijo en las subreedes que tiene la vpc por defecto
-data "aws_subnet" "default" {
-  # filter {
-  #   name   = "vpc-id"
-  #   values = ["vpc-06cb256503c358a72"]
-  # }
-
+data "aws_subnet" "public_subnet_1" {
   filter {
     name   = "availability-zone"
-    values = ["us-east-1a"]
+    values = ["us-east-1a"] # Primera zona de disponibilidad
+  }
+}
+
+data "aws_subnet" "public_subnet_2" {
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1b"] # Segunda zona de disponibilidad
   }
 }
 
@@ -169,12 +171,10 @@ resource "aws_security_group" "mongodb_sg" {
 # A mis dos instancias les asignaré direcciones IP estáticas dentro de la misma subred privada (no son accesibles desde fuera de puerta enlace)
 # servira para que se comunique entre ellas
 resource "aws_network_interface" "web_server_eni" {
-  subnet_id   = data.aws_subnet.default.id
-  private_ips = ["172.31.16.10"] # IP estática para el servidor web
-  security_groups = [aws_security_group.web_server_sg.id] # Asigna el grupo de seguridad del servidor web
-  tags = {
-    Name = "Web-Server-ENI"
-  }
+  count       = 2
+  subnet_id   = data.aws_subnet.public_subnet_1.id
+  private_ips = ["172.31.16.${count.index + 10}"] # IPs dinámicas: 172.31.16.10, 172.31.16.11
+  security_groups = [aws_security_group.web_server_sg.id]
 }
 # resource "aws_eip" "web_server_eip" {
 #   network_interface = aws_network_interface.web_server_eni.id
@@ -184,7 +184,7 @@ resource "aws_network_interface" "web_server_eni" {
 # }
 
 resource "aws_network_interface" "mongodb_eni" {
-  subnet_id   = data.aws_subnet.default.id
+  subnet_id = data.aws_subnet.public_subnet_1.id
   private_ips = ["172.31.16.20"] # IP estática para MongoDB
   security_groups = [aws_security_group.mongodb_sg.id] # Asigna el grupo de seguridad de MongoDB
   tags = {
@@ -222,24 +222,25 @@ resource "local_file" "private_key" {
 # CONFIGURACIÓN DE LA INSTANCIA EC2
 ####################################################################################################
 
-
 # Este recurso lanza una instancia EC2 usando la AMI recuperada en el bloque anterior.
 # Asocia el grupo de seguridad a la instancia EC2 y configura la conexión SSH.
 resource "aws_instance" "web_server" {
   ami                   = data.aws_ami.latest_ami.id
   instance_type         = var.instance_type
   key_name              = aws_key_pair.generated_key.key_name
+  count                 = 2
   #vpc_security_group_ids = [aws_security_group.web_server_sg.id]
 
   # Asociar la ENI con la instancia
   network_interface {
-    network_interface_id = aws_network_interface.web_server_eni.id
+    network_interface_id = aws_network_interface.web_server_eni[count.index].id
     device_index         = 0
   }
 
   tags = {
-    Name = var.instance_name
-  }
+  Name = "${var.instance_name}-${count.index + 1}"
+}
+  
 
   connection {
     type        = "ssh"
@@ -264,26 +265,31 @@ resource "aws_instance" "web_server" {
       # Sustituir el marcador en app.component.ts
       "sudo sed -i 's|__BACKEND_URL__|'\"$BACKEND_URL\"'|g' /home/ubuntu/angular-app/src/app/app.component.ts",
 
+      # Sustituir __NUM_INST__ con el número de instancia
+      #"sudo sed -i 's|__NUM_INST__|'\"$((count.index + 1))\"'|g' /home/ubuntu/angular-app/src/app/app.component.ts",
+      "sudo sed -i 's|__NUM_INST__|'\"${count.index + 1}\"'|g' /home/ubuntu/angular-app/src/app/app.component.ts",
+
+
       # Cambiar al directorio del proyecto Angular
       "cd /home/ubuntu/angular-app",
 
-      "export NG_CLI_ANALYTICS=false",           # Desactiva analíticas
-      "export CI=true",                          # Configura el entorno como CI/CD
-      "echo n | ng analytics off --global",     # Desactiva preguntas interactivas
-      "ng config -g cli.analytics false",       # Configura analíticas en Angular CLI
-      "ng config -g cli.warnings.versionMismatch false", # Evita advertencias
+      # "export NG_CLI_ANALYTICS=false",           # Desactiva analíticas
+      # "export CI=true",                          # Configura el entorno como CI/CD
+      # "echo n | ng analytics off --global",     # Desactiva preguntas interactivas
+      # "ng config -g cli.analytics false",       # Configura analíticas en Angular CLI
+      # "ng config -g cli.warnings.versionMismatch false", # Evita advertencias
       "sudo npm install",                       # Instala dependencias
-      #"sudo ng build --configuration production --no-interactive", # Construye el proyecto sin interacción
+      "(sleep 5; echo 'n'; sleep 10; echo 'N') | sudo ng build --configuration=production", # Construye el proyecto sin interacción
 
       # Crear el directorio en Nginx si no existe
       "sudo mkdir -p /var/www/angular-app/dist",
 
       # Copiar los archivos generados al directorio que usa Nginx
-      #"sudo cp -r dist/angular-app/* /var/www/angular-app/dist/",
+      "sudo cp -r dist/angular-app/* /var/www/angular-app/dist/",
 
       # Asegurarse de que los permisos sean correctos
-      #"sudo chown -R www-data:www-data /var/www/angular-app/dist",
-      #"sudo chmod -R 755 /var/www/angular-app/dist",
+      "sudo chown -R www-data:www-data /var/www/angular-app/dist",
+      "sudo chmod -R 755 /var/www/angular-app/dist",
 
       # Reiniciar Nginx para servir los nuevos archivos
       "sudo systemctl restart nginx",
@@ -336,6 +342,47 @@ provisioner "remote-exec" {
 }
 }
 
+resource "aws_lb" "app_lb" {
+  name               = "app-load-balancer"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.web_server_sg.id]
+  subnets            = [data.aws_subnet.public_subnet_1.id, data.aws_subnet.public_subnet_2.id]
+
+  tags = {
+    Name = "App-Load-Balancer"
+  }
+}
+
+resource "aws_lb_target_group" "app_target_group" {
+  name     = "app-target-group"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+
+  tags = {
+    Name = "App-Target-Group"
+  }
+}
+
+resource "aws_lb_listener" "http_listener" {
+  load_balancer_arn = aws_lb.app_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app_target_group.arn
+  }
+}
+
+resource "aws_lb_target_group_attachment" "web_server_attachment" {
+  count             = length(aws_instance.web_server)
+  target_group_arn  = aws_lb_target_group.app_target_group.arn
+  target_id         = aws_instance.web_server[count.index].id
+  port              = 80
+}
+
 
 
 ################################################################################################################
@@ -345,4 +392,6 @@ provisioner "remote-exec" {
 
 # Get-ChildItem Env: | Where-Object { $_.Name -like "PKR_VAR_*" } --> ver credenciales actuales de AWS en la consola de powershell
 
-# # ssh -i id_rsa ubuntu@34.228.13.36
+# # ssh -i id_rsa ubuntu@98.84.118.14
+
+# mongo --host 172.31.16.20 --port 27017
