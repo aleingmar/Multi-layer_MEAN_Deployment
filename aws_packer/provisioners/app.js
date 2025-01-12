@@ -17,7 +17,65 @@
 // app.listen(PORT, () => {
 //     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 // });
+////////////////////////////////////////////////////////////////////////77
+// const express = require('express');
+// const cors = require('cors');
+// const mongoose = require('mongoose'); // cliente de MongoDB para Node.js (libreria) corre en el puerto 27017
 
+// const app = express();
+// const PORT = 3000;
+
+// // URL de MongoDB
+// const MONGO_URL = "mongodb://172.31.16.20:27017";
+
+// // Middleware
+// app.use(cors());
+// app.use(express.json());
+
+// // Variable para verificar el estado de la conexión
+// let dbConnected = false;
+
+// // Escuchar eventos de la conexión
+// mongoose.connection.on('connected', () => {
+//     console.log('Mongoose está conectado a MongoDB');
+// });
+
+// mongoose.connection.on('error', (err) => {
+//     console.error('Error en la conexión de Mongoose:', err);
+// });
+
+// mongoose.connection.on('disconnected', () => {
+//     console.log('Mongoose está desconectado de MongoDB');
+// });
+
+// // Conectar a MongoDB
+// mongoose.connect(MONGO_URL, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+// }).then((res) => {
+//     console.log("Conexión exitosa a MongoDB:");
+//     console.log(res); // Imprime la respuesta de la conexión
+//     dbConnected = true;
+// }).catch(err => {
+//     console.error("Error al conectar a MongoDB:");
+//     console.error(err); // Imprime el error
+//     dbConnected = false;
+// });
+
+// // Ruta de ejemplo
+// app.get('/api/saludo', (req, res) => {
+//     if (dbConnected) {
+//         res.json({ mensaje: 'Hola desde el backend conectado correctamente a MongoDB!' });
+//     } else {
+//         res.json({ mensaje: 'Hola desde el backend, pero no se pudo conectar a MongoDB.' });
+//     }
+// });
+
+// // Iniciar el servidor
+// app.listen(PORT, () => {
+//     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+// });
+////////////////////////////////////////////////////////////////////////77
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose'); // cliente de MongoDB para Node.js (libreria) corre en el puerto 27017
@@ -25,9 +83,8 @@ const mongoose = require('mongoose'); // cliente de MongoDB para Node.js (librer
 const app = express();
 const PORT = 3000;
 
-// URL de MongoDB (reemplazar con la IP de la instancia MongoDB)
-// const MONGO_URL = "mongodb://<MONGO_INSTANCE_PUBLIC_IP>:27017/hola_mundo";
-const MONGO_URL = "mongodb://172.31.16.20:27017"
+// URL de MongoDB
+const MONGO_URL = "mongodb://172.31.16.20:27017";
 
 // Middleware
 app.use(cors());
@@ -36,16 +93,31 @@ app.use(express.json());
 // Variable para verificar el estado de la conexión
 let dbConnected = false;
 
+// Escuchar eventos de la conexión
+mongoose.connection.on('connected', () => {
+    console.log('Mongoose está conectado a MongoDB');
+});
+
+mongoose.connection.on('error', (err) => {
+    console.error('Error en la conexión de Mongoose:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('Mongoose está desconectado de MongoDB');
+});
+
 // Conectar a MongoDB
 mongoose.connect(MONGO_URL, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-}).then(() => {
-    console.log("Conexión exitosa a MongoDB");
-    dbConnected = true; // Actualiza el estado a conectado
+}).then((res) => {
+    console.log("Conexión exitosa a MongoDB:");
+    console.log(res); // Imprime la respuesta de la conexión
+    dbConnected = true;
 }).catch(err => {
-    console.error("Error al conectar a MongoDB:", err);
-    dbConnected = false; // Asegura que el estado sea falso en caso de error
+    console.error("Error al conectar a MongoDB:");
+    console.error(err); // Imprime el error
+    dbConnected = false;
 });
 
 // Ruta de ejemplo
@@ -61,4 +133,5 @@ app.get('/api/saludo', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
+
 

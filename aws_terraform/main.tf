@@ -53,10 +53,10 @@ data "aws_vpc" "default" {
 }
 # me fijo en las subreedes que tiene la vpc por defecto
 data "aws_subnet" "default" {
-  filter {
-    name   = "vpc-id"
-    values = ["vpc-06cb256503c358a72"]
-  }
+  # filter {
+  #   name   = "vpc-id"
+  #   values = ["vpc-06cb256503c358a72"]
+  # }
 
   filter {
     name   = "availability-zone"

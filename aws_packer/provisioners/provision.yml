@@ -123,7 +123,7 @@
       loop:
         - express
         - cors
-        - mongoose
+        - mongoose@5.10.19
 
     # Copiar aplicación Node.js (Express)
     - name: Copiar aplicación Node.js

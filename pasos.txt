@@ -1,0 +1,15 @@
+(Opcional - Instancia de Mongodb que no use la imagen de packer)
+
+PASO 2:
+- Implementar balanceador de carga
+- Levantar dos instancias + con frontend y packer
+- Cambiar index.html a Hola 1 y Hola 2
+
+
+PASO 3:
+- Limpiar
+- Modularizar
+- Salidas
+
+PASO 4:
+- REDACTAR
