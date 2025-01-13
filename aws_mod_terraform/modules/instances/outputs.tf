@@ -27,7 +27,7 @@ output "mongodb_public_ip" {
 #################################3 SALIDA FINAL
 output "web_server_ssh_commands" {
   description = "Comandos SSH para conectarse a los nodos web"
-  value       = [for eip in aws_eip.web_server_eip : "ssh -i id_rsa ubuntu@${eip.public_ip}"]
+  value       = [for eip in aws_eip.web_server_eip : "ssh -i ./modules/security/id_rsa ubuntu@${eip.public_ip}"]
 }
 
 output "web_server_public_ips" {

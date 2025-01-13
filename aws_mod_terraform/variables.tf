@@ -11,19 +11,19 @@ variable "aws_region" {
 variable "aws_access_key" {
   description = "Clave de acceso de AWS para autenticación"
   type        = string
-  sensitive   = true
+  #sensitive   = true
 }
 
 variable "aws_secret_key" {
   description = "Clave secreta de AWS para autenticación"
   type        = string
-  sensitive   = true
+  #sensitive   = true
 }
 
 variable "aws_session_token" {
   description = "Token de sesión de AWS para autenticación temporal"
   type        = string
-  sensitive   = true
+  #sensitive   = true
 }
 
 ############################################

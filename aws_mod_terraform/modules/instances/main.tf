@@ -70,7 +70,7 @@ resource "aws_instance" "web_server" {
       "sudo sed -i 's|__NUM_INST__|'\"${count.index + 1}\"'|g' /home/ubuntu/angular-app/src/app/app.component.ts",
       "cd /home/ubuntu/angular-app",
       "sudo npm install",
-      "(sleep 5; echo 'n'; sleep 10; echo 'N') | sudo ng build --configuration=production",
+      "(sleep 7; echo 'n'; sleep 20; echo 'N') | sudo ng build --configuration=production",
       "sudo mkdir -p /var/www/angular-app/dist",
       "sudo cp -r dist/angular-app/* /var/www/angular-app/dist/",
       "sudo chown -R www-data:www-data /var/www/angular-app/dist",
