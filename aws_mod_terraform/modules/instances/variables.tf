@@ -9,10 +9,6 @@ variable "key_name" {
   type        = string
 }
 
-variable "ssh_private_key" {
-  description = "Clave privada para conexión SSH"
-  type        = string
-}
 
 # Web Servers
 variable "web_server_count" {

@@ -1,72 +1,77 @@
+#################    APUNTES   ##########################3
+#  module.network.vpc_id --> Se accede asi a esto pk viene definido en el output del modulo network
+# Los outputs se usan para usar valores que se generan por un modulo --> por eso suelen ser id's
+###########################################3
+
 # Proveedor AWS
 provider "aws" {
-  region = "var.aws_region"
+  region = "us-east-1"
 }
 
-# Configuración de la Red
+# Configuración de Red: Define y gestiona la red (VPC, subnets, etc.)
 module "network" {
   source              = "./modules/network"
-  vpc_cidr_block      = "172.31.16.0/24"
-  vpc_name            = "CustomVPC"
-  subnet_1_cidr       = "172.31.16.0/25"
-  subnet_1_az         = "us-east-1a"
-  subnet_1_name       = "PublicSubnet1"
-  subnet_2_cidr       = "172.31.16.128/25"
-  subnet_2_az         = "us-east-1b"
-  subnet_2_name       = "PublicSubnet2"
-  igw_name            = "CustomIGW"
-  route_table_name    = "PublicRouteTable"
+  vpc_cidr_block      = "172.31.16.0/24" # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  vpc_name            = "CustomVPC"     # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  subnet_1_cidr       = "172.31.16.0/25" # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  subnet_1_az         = "us-east-1a"    # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  subnet_1_name       = "PublicSubnet1" # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  subnet_2_cidr       = "172.31.16.128/25" # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  subnet_2_az         = "us-east-1b"    # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  subnet_2_name       = "PublicSubnet2" # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  igw_name            = "CustomIGW"     # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
+  route_table_name    = "PublicRouteTable" # Local al módulo de red: Solo se utiliza dentro del módulo `network`.
 }
 
-# Configuración de Seguridad
+# Configuración de Seguridad: Define grupos de seguridad y claves SSH.
 module "security" {
   source              = "./modules/security"
-  vpc_id              = module.network.vpc_id
-  web_server_name     = "web-server"
-  ingress_cidr_blocks = ["0.0.0.0/0"]
-  key_name            = "unir"
+  vpc_id              = module.network.vpc_id # Global: Se utiliza en los módulos `network`, `security` e `instances`.
+  web_server_name     = "Instance_stack_MEAN"         # Local al módulo de seguridad: Solo se utiliza dentro del módulo `security`.
+  ingress_cidr_blocks = ["0.0.0.0/0"]        # Local al módulo de seguridad: Solo se utiliza dentro del módulo `security`.
+  key_name            = "unir"               # Global: Se utiliza en los módulos `security` e `instances`.
 }
 
-# Configuración de Instancias EC2
-
+# Configuración de Instancias EC2: Define las instancias y sus configuraciones.
 module "instances" {
   source                        = "./modules/instances"
-  instance_type                 = "t2.micro"
-  key_name                      = "unir"
-  ssh_private_key               = module.security.private_key_pem
-  web_server_count              = 2
-  web_server_ami                = module.image.latest_ami_id
-  web_server_subnet_id          = module.network.subnet_1_id
-  web_server_private_ip_base    = "172.31.16"
-  web_server_security_group_id  = module.security.web_server_security_group_id
-  web_server_instance_name      = "Instance_stack_MEAN"
-  mongodb_ami                   = module.image.latest_ami_id
-  mongodb_subnet_id             = module.network.subnet_2_id
-  mongodb_private_ip            = "172.31.16.20"
-  mongodb_security_group_id     = module.security.mongodb_security_group_id
+  instance_type                 = "t2.micro" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
+  key_name                      = module.security.key_name # Global: Se utiliza en los módulos `security` e `instances`.
+  ssh_private_key               = module.security.private_key_pem # Global: Se utiliza en los módulos `security` e `instances`.
+  web_server_count              = 2 # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
+  web_server_ami                = module.image.latest_ami_id # Global: Se utiliza en los módulos `image` e `instances`.
+  web_server_subnet_id          = module.network.subnet_1_id # Global: Se utiliza en los módulos `network` e `instances`.
+  web_server_private_ip_base    = "172.31.16" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
+  web_server_security_group_id  = module.security.web_server_security_group_id # Global: Se utiliza en los módulos `security` e `instances`.
+  web_server_instance_name      = "Instance_stack_MEAN" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
+  mongodb_ami                   = module.image.latest_ami_id # Global: Se utiliza en los módulos `image` e `instances`.
+  mongodb_subnet_id             = module.network.subnet_2_id # Global: Se utiliza en los módulos `network` e `instances`.
+  mongodb_private_ip            = "172.31.16.20" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
+  mongodb_security_group_id     = module.security.mongodb_security_group_id # Global: Se utiliza en los módulos `security` e `instances`.
 }
 
-# Configuración de Load Balancer
+# Configuración del Load Balancer: Define y gestiona el balanceador de carga.
 module "load_balancer" {
   source           = "./modules/load_balancer"
-  lb_name          = "app-load-balancer"
-  security_groups  = [module.security.web_server_security_group_id]
-  subnets          = [module.network.subnet_1_id, module.network.subnet_2_id]
-  vpc_id           = module.network.vpc_id
-  instance_count   = module.instances.web_server_count
-  target_ids       = module.instances.web_server_ids
+  lb_name          = "app-load-balancer" # Local al módulo de load balancer: Solo se utiliza dentro del módulo `load_balancer`.
+  security_groups  = [module.security.web_server_security_group_id] # Global: Se utiliza en los módulos `security` y `load_balancer`.
+  subnets          = [module.network.subnet_1_id, module.network.subnet_2_id] # Global: Se utiliza en los módulos `network` y `load_balancer`.
+  vpc_id           = module.network.vpc_id # Global: Se utiliza en los módulos `network`, `security`, `instances` y `load_balancer`.
+  instance_count   = module.instances.web_server_count # Local al módulo de load balancer: Calculado con datos de `instances`.
+  target_ids       = module.instances.web_server_ids # Global: Se utiliza en los módulos `instances` y `load_balancer`.
 }
 
-# Configuración de la Imagen (Packer)
+# Configuración de Imagen (Packer): Define la AMI personalizada.
 module "image" {
   source               = "./modules/image"
-  aws_access_key       = var.aws_access_key
-  aws_secret_key       = var.aws_secret_key
-  aws_session_token    = var.aws_session_token
-  packer_var_file      = "../aws_packer/variables.pkrvars.hcl"
-  packer_template_file = "../aws_packer/main.pkr.hcl"
-  ami_name             = "imagen_stack_MEAN"
+  aws_access_key       = var.aws_access_key # Global: Se utiliza en el módulo `image`.
+  aws_secret_key       = var.aws_secret_key # Global: Se utiliza en el módulo `image`.
+  aws_session_token    = var.aws_session_token # Global: Se utiliza en el módulo `image`.
+  packer_var_file      = "../aws_packer/variables.pkrvars.hcl" # Local al módulo de imagen: Solo se utiliza dentro del módulo `image`.
+  packer_template_file = "../aws_packer/main.pkr.hcl" # Local al módulo de imagen: Solo se utiliza dentro del módulo `image`.
+  ami_name             = "imagen_stack_MEAN" # Local al módulo de imagen: Solo se utiliza dentro del módulo `image`.
 }
+
 
 #########################################################3
 # terraform apply -var "aws_access_key=$env:PKR_VAR_aws_access_key" ` -var "aws_secret_key=$env:PKR_VAR_aws_secret_key" ` -var "aws_session_token=$env:PKR_VAR_aws_session_token" 
