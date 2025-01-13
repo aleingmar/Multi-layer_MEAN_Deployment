@@ -29,15 +29,15 @@ module "security" {
   vpc_id              = module.network.vpc_id # Global: Se utiliza en los módulos `network`, `security` e `instances`.
   web_server_name     = "Instance_stack_MEAN"         # Local al módulo de seguridad: Solo se utiliza dentro del módulo `security`.
   ingress_cidr_blocks = ["0.0.0.0/0"]        # Local al módulo de seguridad: Solo se utiliza dentro del módulo `security`.
-  key_name            = "unir"               # Global: Se utiliza en los módulos `security` e `instances`.
+  key_name            = var.key_name              # Global: Se utiliza en los módulos `security` e `instances`.
 }
 
 # Configuración de Instancias EC2: Define las instancias y sus configuraciones.
 module "instances" {
   source                        = "./modules/instances"
   instance_type                 = "t2.micro" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
-  key_name                      = module.security.key_name # Global: Se utiliza en los módulos `security` e `instances`.
-  ssh_private_key               = module.security.private_key_pem # Global: Se utiliza en los módulos `security` e `instances`.
+  key_name                      = var.key_name # Global: Se utiliza en los módulos `security` e `instances`.
+  ssh_private_key               = module.security.ssh_private_key # Global: Se utiliza en los módulos `security` e `instances`.
   web_server_count              = 2 # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
   web_server_ami                = module.image.latest_ami_id # Global: Se utiliza en los módulos `image` e `instances`.
   web_server_subnet_id          = module.network.subnet_1_id # Global: Se utiliza en los módulos `network` e `instances`.
@@ -57,7 +57,7 @@ module "load_balancer" {
   security_groups  = [module.security.web_server_security_group_id] # Global: Se utiliza en los módulos `security` y `load_balancer`.
   subnets          = [module.network.subnet_1_id, module.network.subnet_2_id] # Global: Se utiliza en los módulos `network` y `load_balancer`.
   vpc_id           = module.network.vpc_id # Global: Se utiliza en los módulos `network`, `security`, `instances` y `load_balancer`.
-  instance_count   = module.instances.web_server_count # Local al módulo de load balancer: Calculado con datos de `instances`.
+  instance_target_count   = 2 # Local al módulo de load balancer: Calculado con datos de `instances`.
   target_ids       = module.instances.web_server_ids # Global: Se utiliza en los módulos `instances` y `load_balancer`.
 }
 

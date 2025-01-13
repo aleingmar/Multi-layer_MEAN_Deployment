@@ -66,5 +66,5 @@ variable "mongodb_security_group_id" {
 variable "ssh_private_key" {
   description = "Clave privada SSH generada"
   type        = string
-  sensitive   = true
+  #sensitive   = true
 }

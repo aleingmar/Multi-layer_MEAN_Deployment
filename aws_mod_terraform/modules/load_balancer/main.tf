@@ -42,7 +42,7 @@ resource "aws_lb_listener" "http_listener" {
 }
 
 resource "aws_lb_target_group_attachment" "web_server_attachment" {
-  count             = var.instance_count
+  count             = var.instance_target_count
   target_group_arn  = aws_lb_target_group.app_target_group.arn
   target_id         = var.target_ids[count.index]
   port              = var.target_port

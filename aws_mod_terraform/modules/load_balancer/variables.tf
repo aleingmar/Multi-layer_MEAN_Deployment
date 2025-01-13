@@ -30,7 +30,7 @@ variable "target_port" {
   default     = 80
 }
 
-variable "instance_count" {
+variable "instance_target_count" {
   description = "Cantidad de instancias para el Target Group Attachment"
   type        = number
 }

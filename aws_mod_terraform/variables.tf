@@ -35,22 +35,22 @@ variable "key_name" {
   type        = string
 }
 
-variable "ssh_private_key" {
-  description = "Clave privada generada en el módulo de seguridad para SSH"
-  type        = string
-  sensitive   = true
-}
+# variable "ssh_private_key" {
+#   description = "Clave privada generada en el módulo de seguridad para SSH"
+#   type        = string
+#   sensitive   = true
+# }
 
 ############################################
 # Instances
 ############################################
 
-variable "web_server_ami" {
-  description = "AMI utilizada para los servidores web (generada por Packer)"
-  type        = string
-}
+# variable "web_server_ami" {
+#   description = "AMI utilizada para los servidores web (generada por Packer)"
+#   type        = string
+# }
 
-variable "mongodb_ami" {
-  description = "AMI utilizada para la instancia de MongoDB (generada por Packer)"
-  type        = string
-}
+# variable "mongodb_ami" {
+#   description = "AMI utilizada para la instancia de MongoDB (generada por Packer)"
+#   type        = string
+# }
