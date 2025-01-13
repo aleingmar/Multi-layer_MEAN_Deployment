@@ -48,24 +48,78 @@ data "aws_ami" "latest_ami" {
 ####################################################################################################
 # OBTENER LA VPC POR DEFECTO (configuración de red virtual)
 ####################################################################################################
-data "aws_vpc" "default" {
-  default = true # Recupera la VPC predeterminada asociada a la cuenta AWS.
-}
-# me fijo en las subreedes que tiene la vpc por defecto
-data "aws_subnet" "public_subnet_1" {
-  filter {
-    name   = "availability-zone"
-    values = ["us-east-1a"] # Primera zona de disponibilidad
+# data "aws_vpc" "default" {
+#   default = true # Recupera la VPC predeterminada asociada a la cuenta AWS.
+# }
+# # me fijo en las subreedes que tiene la vpc por defecto
+# data "aws_subnet" "public_subnet_1" {
+#   filter {
+#     name   = "availability-zone"
+#     values = ["us-east-1a"] # Primera zona de disponibilidad
+#   }
+# }
+
+# data "aws_subnet" "public_subnet_2" {
+#   filter {
+#     name   = "availability-zone"
+#     values = ["us-east-1b"] # Segunda zona de disponibilidad
+#   }
+# }
+
+resource "aws_vpc" "custom_vpc" {
+  cidr_block = "172.31.16.0/24"
+  tags = {
+    Name = "CustomVPC"
   }
 }
 
-data "aws_subnet" "public_subnet_2" {
-  filter {
-    name   = "availability-zone"
-    values = ["us-east-1b"] # Segunda zona de disponibilidad
+resource "aws_subnet" "public_subnet_1" {
+  vpc_id            = aws_vpc.custom_vpc.id
+  cidr_block        = "172.31.16.0/25" # (IPs: 172.31.16.0 - 172.31.16.127)
+  availability_zone = "us-east-1a"
+  tags = {
+    Name = "PublicSubnet1"
   }
 }
 
+resource "aws_subnet" "public_subnet_2" {
+  vpc_id            = aws_vpc.custom_vpc.id
+  cidr_block        = "172.31.16.128/25" #(IPs: 172.31.16.128 - 172.31.16.255)
+  availability_zone = "us-east-1b"
+  tags = {
+    Name = "PublicSubnet2"
+  }
+}
+
+resource "aws_internet_gateway" "custom_igw" {
+  vpc_id = aws_vpc.custom_vpc.id
+  tags = {
+    Name = "CustomIGW"
+  }
+}
+
+resource "aws_route_table" "public_route_table" {
+  vpc_id = aws_vpc.custom_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.custom_igw.id
+  }
+
+  tags = {
+    Name = "PublicRouteTable"
+  }
+}
+
+resource "aws_route_table_association" "public_subnet_1_association" {
+  subnet_id      = aws_subnet.public_subnet_1.id
+  route_table_id = aws_route_table.public_route_table.id
+}
+
+resource "aws_route_table_association" "public_subnet_2_association" {
+  subnet_id      = aws_subnet.public_subnet_2.id
+  route_table_id = aws_route_table.public_route_table.id
+}
 
 ####################################################################################################
 # CONFIGURACIÓN DEL GRUPO DE SEGURIDAD PARA LA INSTANCIA EC2
@@ -78,8 +132,8 @@ resource "aws_security_group" "web_server_sg" {
   #count = length(try(data.aws_security_group.existing_sg, [])) == 0 ? 1 : 0
   name        = "${var.instance_name}-sg" # El nombre del grupo de seguridad se basa en el nombre de la instancia.
   description = "Grupo de seguridad para la instancia EC2" # Descripción del grupo.
-  #vpc_id      = data.aws_vpc.default.id  # Asocia este grupo de seguridad a la VPC predeterminada.
-  vpc_id      = length(data.aws_vpc.default) > 0 ? data.aws_vpc.default.id : null
+  #vpc_id      = aws_vpc.custom_vpc.id  # Asocia este grupo de seguridad a la VPC predeterminada.
+  vpc_id      = length(aws_vpc.custom_vpc) > 0 ? aws_vpc.custom_vpc.id : null
   
   #ingress --> trafico de entrada
   #egrress --> trafico de salida
@@ -129,7 +183,7 @@ resource "aws_security_group" "web_server_sg" {
 resource "aws_security_group" "mongodb_sg" {
   name        = "mongodb-sg"
   description = "Grupo de seguridad para MongoDB"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = aws_vpc.custom_vpc.id
 
   ingress {
     description = "Permitir trafico desde el backend"
@@ -172,31 +226,32 @@ resource "aws_security_group" "mongodb_sg" {
 # servira para que se comunique entre ellas
 resource "aws_network_interface" "web_server_eni" {
   count       = 2
-  subnet_id   = data.aws_subnet.public_subnet_1.id
+  subnet_id   = aws_subnet.public_subnet_1.id
   private_ips = ["172.31.16.${count.index + 10}"] # IPs dinámicas: 172.31.16.10, 172.31.16.11
   security_groups = [aws_security_group.web_server_sg.id]
 }
-# resource "aws_eip" "web_server_eip" {
-#   network_interface = aws_network_interface.web_server_eni.id
-#   tags = {
-#     Name = "Web-Server-EIP"
-#   }
-# }
+resource "aws_eip" "web_server_eip" {
+  count             = 2
+  network_interface = aws_network_interface.web_server_eni[count.index].id
+  tags = {
+    Name = "Web-Server-EIP-${count.index + 1}"
+  }
+}
 
 resource "aws_network_interface" "mongodb_eni" {
-  subnet_id = data.aws_subnet.public_subnet_1.id
+  subnet_id = aws_subnet.public_subnet_1.id
   private_ips = ["172.31.16.20"] # IP estática para MongoDB
   security_groups = [aws_security_group.mongodb_sg.id] # Asigna el grupo de seguridad de MongoDB
   tags = {
     Name = "MongoDB-ENI"
   }
 }
-# resource "aws_eip" "mongodb_eip" {
-#   network_interface = aws_network_interface.mongodb_eni.id
-#   tags = {
-#     Name = "MongoDB-EIP"
-#   }
-# }
+resource "aws_eip" "mongodb_eip" {
+  network_interface = aws_network_interface.mongodb_eni.id
+  tags = {
+    Name = "MongoDB-EIP"
+  }
+}
 ###################################################
 # GENERA EL PAR DE CLAVES Y SE LO PASA A AWS
 ##################################################
@@ -229,6 +284,7 @@ resource "aws_instance" "web_server" {
   instance_type         = var.instance_type
   key_name              = aws_key_pair.generated_key.key_name
   count                 = 2
+  #associate_public_ip_address = true
   #vpc_security_group_ids = [aws_security_group.web_server_sg.id]
 
   # Asociar la ENI con la instancia
@@ -246,7 +302,7 @@ resource "aws_instance" "web_server" {
     type        = "ssh"
     user        = "ubuntu"
     private_key = tls_private_key.ssh_key.private_key_pem
-    host        = self.public_ip
+    host        = aws_eip.web_server_eip[count.index].public_ip # Usa la IP pública para conectar
   }
 
     # Ejecutar script Bash para sustituir el marcador y construir Angular
@@ -302,6 +358,7 @@ resource "aws_instance" "mongodb" {
   ami                   = data.aws_ami.latest_ami.id
   instance_type         = var.instance_type
   key_name              = aws_key_pair.generated_key.key_name
+  #associate_public_ip_address = true
   #vpc_security_group_ids = [aws_security_group.web_server_sg.id]
 
   tags = {
@@ -318,7 +375,7 @@ resource "aws_instance" "mongodb" {
     type        = "ssh"
     user        = "ubuntu" # Usuario predeterminado de Ubuntu en AWS AMI
     private_key = tls_private_key.ssh_key.private_key_pem
-    host        = self.public_ip
+    host        = aws_eip.mongodb_eip.public_ip # Usa la IP pública para conectar
   }
 
 
@@ -341,24 +398,49 @@ provisioner "remote-exec" {
   ]
 }
 }
-
+################################ BALANCEADOR
 resource "aws_lb" "app_lb" {
   name               = "app-load-balancer"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.web_server_sg.id]
-  subnets            = [data.aws_subnet.public_subnet_1.id, data.aws_subnet.public_subnet_2.id]
+  subnets            = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
 
   tags = {
     Name = "App-Load-Balancer"
   }
 }
 
+# resource "aws_lb_target_group" "app_target_group" {
+#   name     = "app-target-group"
+#   port     = 80
+#   protocol = "HTTP"
+#   vpc_id   = aws_vpc.custom_vpc.id
+
+#   tags = {
+#     Name = "App-Target-Group"
+#   }
+# }
 resource "aws_lb_target_group" "app_target_group" {
-  name     = "app-target-group"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
+  name                          = "app-target-group"
+  port                          = 80
+  protocol                      = "HTTP"
+  vpc_id                        = aws_vpc.custom_vpc.id
+  load_balancing_algorithm_type = "round_robin"
+
+  stickiness {
+    type            = "lb_cookie"
+    enabled         = false
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    interval            = 30
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+  }
 
   tags = {
     Name = "App-Target-Group"
@@ -394,4 +476,6 @@ resource "aws_lb_target_group_attachment" "web_server_attachment" {
 
 # # ssh -i id_rsa ubuntu@98.84.118.14
 
-# mongo --host 172.31.16.20 --port 27017
+# sudo apt install mongodb-clients && mongo --host 172.31.16.20 --port 27017
+
+# for i in {1..10}; do curl -I -v http://app-load-balancer-1360292704.us-east-1.elb.amazonaws.com/ 2>&1 | grep 'Connected to'; done

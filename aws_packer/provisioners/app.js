@@ -1,23 +1,5 @@
-// CORS (Cross-Origin Resource Sharing): Angular y Express generalmente corren en diferentes dominios o puertos durante el desarrollo. Para permitir la comunicación, incluye el middleware cors en tu backend, como en el ejemplo anterior.
-// const express = require('express');
-// const cors = require('cors');
 
-// const app = express();
-// const PORT = 3000;
-
-// // Middleware para CORS
-// app.use(cors());
-// app.use(express.json());
-
-// // Rutas de ejemplo
-// app.get('/api/saludo', (req, res) => {
-//     res.json({ mensaje: 'Hola desde el backend!' });
-// });
-
-// app.listen(PORT, () => {
-//     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-// });
-////////////////////////////////////////////////////////////////////////77
+// ////////////////////////////////////////////////////////////////////////77
 // const express = require('express');
 // const cors = require('cors');
 // const mongoose = require('mongoose'); // cliente de MongoDB para Node.js (libreria) corre en el puerto 27017
@@ -75,12 +57,19 @@
 // app.listen(PORT, () => {
 //     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 // });
-////////////////////////////////////////////////////////////////////////77
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose'); // cliente de MongoDB para Node.js (libreria) corre en el puerto 27017
+const mongoose = require('mongoose'); // cliente de MongoDB para Node.js
 
-const app = express();
+const app = express(); // Asegúrate de que la variable `app` esté definida primero
 const PORT = 3000;
 
 // URL de MongoDB
@@ -93,9 +82,31 @@ app.use(express.json());
 // Variable para verificar el estado de la conexión
 let dbConnected = false;
 
+// Función para intentar conectarse a MongoDB con mensajes de depuración
+async function connectToMongoDB() {
+    console.log("Intentando conectar a MongoDB...");
+    try {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Esperar antes de conectar
+        await mongoose.connect(MONGO_URL, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log("Conexión exitosa a MongoDB.");
+        dbConnected = true;
+    } catch (err) {
+        console.error("Error al conectar a MongoDB:", err);
+        dbConnected = false;
+
+        // Reintentar conexión
+        console.log("Esperando 5 segundos antes de reintentar...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        return connectToMongoDB();
+    }
+}
+
 // Escuchar eventos de la conexión
 mongoose.connection.on('connected', () => {
-    console.log('Mongoose está conectado a MongoDB');
+    console.log('Mongoose está conectado a MongoDB.');
 });
 
 mongoose.connection.on('error', (err) => {
@@ -103,22 +114,11 @@ mongoose.connection.on('error', (err) => {
 });
 
 mongoose.connection.on('disconnected', () => {
-    console.log('Mongoose está desconectado de MongoDB');
+    console.log('Mongoose está desconectado de MongoDB.');
 });
 
-// Conectar a MongoDB
-mongoose.connect(MONGO_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then((res) => {
-    console.log("Conexión exitosa a MongoDB:");
-    console.log(res); // Imprime la respuesta de la conexión
-    dbConnected = true;
-}).catch(err => {
-    console.error("Error al conectar a MongoDB:");
-    console.error(err); // Imprime el error
-    dbConnected = false;
-});
+// Intentar conectarse a MongoDB
+connectToMongoDB();
 
 // Ruta de ejemplo
 app.get('/api/saludo', (req, res) => {
@@ -133,5 +133,3 @@ app.get('/api/saludo', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
-
-
