@@ -27,3 +27,20 @@ output "mongodb_nat_gateway_public_ip" {
   description = "IP pública del NAT Gateway asociado a la instancia MongoDB"
   value       = aws_eip.mongodb_eip.public_ip
 }
+###################################################################################################################
+output "load_balancer_dns" {
+  value = module.load_balancer.load_balancer_dns
+}
+
+output "web_server_ssh_commands" {
+  value = [for ip in module.instances.web_server_public_ips : "ssh -i ~/.ssh/unir.pem ubuntu@${ip}"]
+}
+
+output "web_server_public_ips" {
+  value = module.instances.web_server_public_ips
+}
+
+output "mongodb_public_ip" {
+  value = module.instances.mongodb_public_ip
+}
+

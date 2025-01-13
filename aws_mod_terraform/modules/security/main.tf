@@ -5,7 +5,7 @@ resource "aws_security_group" "web_server_sg" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "Permitir tráfico HTTP"
+    description = "Permitir trafico HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -13,7 +13,7 @@ resource "aws_security_group" "web_server_sg" {
   }
 
   ingress {
-    description = "Permitir tráfico HTTPS"
+    description = "Permitir trafico HTTPS"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -51,7 +51,7 @@ resource "aws_security_group" "mongodb_sg" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "Permitir tráfico desde el backend"
+    description = "Permitir trafico desde el backend"
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
