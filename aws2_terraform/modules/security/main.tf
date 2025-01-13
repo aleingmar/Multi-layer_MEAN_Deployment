@@ -87,3 +87,24 @@ resource "aws_security_group" "mongodb_sg" {
     Name = var.mongodb_sg_name
   }
 }
+
+###################################################
+# GENERA EL PAR DE CLAVES Y SE LO PASA A AWS
+##################################################
+# Generar un par de claves SSH automáticamente
+resource "tls_private_key" "ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+# Registrar la clave pública en AWS
+resource "aws_key_pair" "generated_key" {
+  key_name   = var.key_name # Nombre de la clave en AWS
+  public_key = tls_private_key.ssh_key.public_key_openssh
+}
+
+# Guardar la clave privada localmente en el directorio donde se ejecuta el apply
+resource "local_file" "private_key" {
+  content  = tls_private_key.ssh_key.private_key_pem
+  filename = "${path.module}/id_rsa" 
+}

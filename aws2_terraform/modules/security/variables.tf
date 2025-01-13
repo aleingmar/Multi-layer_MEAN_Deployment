@@ -11,3 +11,7 @@ variable "mongodb_sg_name" {
   description = "Nombre del grupo de seguridad para MongoDB"
   default     = "mongodb-sg"
 }
+
+variable "key_name" {
+  description = "Nombre de la clave SSH"
+}

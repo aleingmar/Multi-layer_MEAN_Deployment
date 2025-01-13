@@ -1,3 +1,7 @@
+# Imagen
+ami_name = "imagen_stack_MEAN"
+# Credenciales no hace falta (se pasa en el comando de ejecución de terraform)
+
 # Network
 vpc_cidr             = "172.31.16.0/24"
 vpc_name             = "CustomVPC"
@@ -9,6 +13,7 @@ availability_zone_2  = "us-east-1b"
 # Security
 web_sg_name          = "WebServerSG"
 mongodb_sg_name      = "MongoDBSG"
+key_name = "unir"
 
 # Compute
 ami_id               = "ami-12345678"

@@ -48,3 +48,5 @@ resource "aws_lb_target_group_attachment" "web_server_attachment" {
   target_id         = var.web_server_ids[count.index]
   port              = 80
 }
+# terraform state show aws_lb_target_group_attachment.web_server_attachment
+
