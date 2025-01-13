@@ -45,7 +45,7 @@ module "instances" {
   web_server_security_group_id  = module.security.web_server_security_group_id # Global: Se utiliza en los módulos `security` e `instances`.
   web_server_instance_name      = "Instance_stack_MEAN" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
   mongodb_ami                   = module.image.latest_ami_id # Global: Se utiliza en los módulos `image` e `instances`.
-  mongodb_subnet_id             = module.network.subnet_2_id # Global: Se utiliza en los módulos `network` e `instances`.
+  mongodb_subnet_id             = module.network.subnet_1_id # Global: Se utiliza en los módulos `network` e `instances`.
   mongodb_private_ip            = "172.31.16.20" # Local al módulo de instancias: Solo se utiliza dentro del módulo `instances`.
   mongodb_security_group_id     = module.security.mongodb_security_group_id # Global: Se utiliza en los módulos `security` e `instances`.
 }

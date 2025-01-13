@@ -2,7 +2,7 @@
 resource "aws_network_interface" "web_server_eni" {
   count           = var.web_server_count
   subnet_id       = var.web_server_subnet_id
-  private_ips     = [for i in range(var.web_server_count) : "${var.web_server_private_ip_base}.${i + 10}"]
+  private_ips     = ["${var.web_server_private_ip_base}.${count.index + 10}"] # Asigna una IP única a cada ENI
   #private_ips = ["172.31.16.${count.index + 10}"] # IPs dinámicas: 172.31.16.10, 172.31.16.11
   security_groups = [var.web_server_security_group_id]
 
