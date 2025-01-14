@@ -16,6 +16,7 @@ resource "aws_lb_target_group" "app_target_group" {
   protocol     = "HTTP"
   vpc_id       = var.vpc_id
 
+  # Configuración de health check
   health_check {
     healthy_threshold   = 2
     unhealthy_threshold = 2
@@ -23,6 +24,15 @@ resource "aws_lb_target_group" "app_target_group" {
     path                = "/"
     protocol            = "HTTP"
     matcher             = "200"
+  }
+
+  # Configuración de Sticky Sessions
+  # Con esto conseguimos que el balanceador recuerde que instancia mando el index.html y redirija las peticiones de sus rcursos a la misma instancia
+  # Si no me daba un gran problema de inconsistencia en la carga de los recursos
+  # 5s deberia ser mas q de sobra
+  stickiness {
+    type            = "lb_cookie" # Usamos cookies gestionadas por el ALB
+    cookie_duration = 5          # Duración de 10 segundos
   }
 
   tags = {

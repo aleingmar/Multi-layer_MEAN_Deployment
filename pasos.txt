@@ -1,15 +1,39 @@
-(Opcional - Instancia de Mongodb que no use la imagen de packer)
+COSAS QUE 100% HE COMPROBADO
 
-PASO 2:
-- Implementar balanceador de carga
-- Levantar dos instancias + con frontend y packer
-- Cambiar index.html a Hola 1 y Hola 2
+- Accedo a las intancias por separados con sus ips??
+
+YES
+
+- Me marcan ambas instancias healthy en la interfaz??
+
+YES, ambas en zona 1a
+
+- Alguna regla en el Listener (interfaz)??
+
+NO, por defecto
+
+- Todas las solicitudes le llegan a la misma instancia aunque este ambas healthy???
+
+Desde la interfaz --> Primero blanco, despues Instancia 1 (Ok), blanco, Instancia 2 (OK), Instancia 2, blanco, instancia 1 (despues de tiempo), instancia 1, instancia 1 (rapido),
+
+- Me cachea el navegador algo de contenido??
+
+No lo se, pero con microsofedge es siempre en blanco
+
+//////////
+- Podemos afirmar que llega a las dos instancias, 
+- que reparte a veces a una instancia u a otra, cuando esperamos un tiempo cambia, si recargo muchas veces rapido todas a la misma, si espero cambia
+- que hay veces que funciona la interfaz de instancia 1, otras la instacia 2 y otras aparece en blanco y cuando es blanco sale este error:
+Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of "text/html". Strict MIME type checking is enforced for module scripts per HTML spec.
+///////////
+
+TAREAS A REALIZAR:
+
+- Cambiar navegador
+
+- Cambiar de tipo de balanceador al mas basico --> puede ser que funcione
+
+- Checkear los valores de las variables de terraform
 
 
-PASO 3:
-- Limpiar
-- Modularizar
-- Salidas
 
-PASO 4:
-- REDACTAR
